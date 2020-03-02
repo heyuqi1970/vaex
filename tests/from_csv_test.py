@@ -28,8 +28,6 @@ def test_from_csv():
 
 
 def test_from_csv_converting_in_chunks():
-    _cleanup_generated_files()
-
     # can read several chunks with converting, intermediate files are deleted
     df = vaex.from_csv(csv_path, copy_index=False, chunk_size=1, convert=True)
     _assert_csv_content(df)
@@ -70,8 +68,8 @@ def _assert_csv_content(csv_df, with_index=False):
         assert csv_df.get_column_names() == ['x', 'y', 'index']
     else:
         assert csv_df.get_column_names() == ['x', 'y']
-    assert (csv_df.x.values == [5, 7, 9]).all()
-    assert (csv_df.y.values == [6, 9, 10]).all()
+    assert csv_df.x.tolist() == [5, 7, 9]
+    assert csv_df.y.tolist() == [6, 9, 10]
 
 
 def _cleanup_generated_files(*dfs):

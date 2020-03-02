@@ -174,7 +174,7 @@ def open(path, convert=False, shuffle=False, copy_index=True, *args, **kwargs):
         else:
             import vaex.file
             import glob
-            if isinstance(path, six.string_types):
+            if isinstance(path, str):
                 paths = [path]
             else:
                 paths = path
@@ -524,9 +524,9 @@ def _from_csv_read(filename_or_buffer, copy_index, chunk_size, **kwargs):
 
 def _from_csv_convert_and_read(filename_or_buffer, copy_index, maybe_convert_path, chunk_size, **kwargs):
     # figure out the CSV file path
-    if isinstance(filename_or_buffer, six.string_types):
+    if isinstance(filename_or_buffer, str):
         csv_path = filename_or_buffer
-    elif isinstance(maybe_convert_path, six.string_types):
+    elif isinstance(maybe_convert_path, str):
         csv_path = re.sub(r'\.hdf5$', '', str(maybe_convert_path), flags=re.IGNORECASE)
     else:
         raise ValueError('Cannot derive filename to use for converted HDF5 file, '
@@ -542,10 +542,10 @@ def _from_csv_convert_and_read(filename_or_buffer, copy_index, maybe_convert_pat
     import pandas as pd
     converted_paths = []
     csv_reader = pd.read_csv(filename_or_buffer, chunksize=chunk_size, **kwargs)
-    for i, df in enumerate(csv_reader):
-        ds = from_pandas(df, copy_index=copy_index)
+    for i, df_pandas in enumerate(csv_reader):
+        df = from_pandas(df_pandas, copy_index=copy_index)
         filename_hdf5 = _convert_name(csv_path, suffix='_chunk%d' % i)
-        ds.export_hdf5(filename_hdf5, shuffle=False)
+        df.export_hdf5(filename_hdf5, shuffle=False)
         converted_paths.append(filename_hdf5)
         logger.info('saved chunk #%d to %s' % (i, filename_hdf5))
 
@@ -555,18 +555,18 @@ def _from_csv_convert_and_read(filename_or_buffer, copy_index, maybe_convert_pat
         os.rename(converted_paths[0], combined_hdf5)
     else:
         logger.info('converting %d chunks into single HDF5 file %s' % (len(converted_paths), combined_hdf5))
-        dss = [vaex.file.open(p) for p in converted_paths]
-        combined_df = vaex.dataframe.DataFrameConcatenated(dss)
-        combined_df.export_hdf5(combined_hdf5, shuffle=False)
-        for df in dss:
-            df.close_files()
-        try:
-            logger.info('deleting %d chunk files' % len(converted_paths))
-            for p in converted_paths:
-                os.remove(p)
-        except IOError as e:
-            logger.error('Could not delete intermediate hdf5 file(s) used to convert %s to hdf5: %s' % (
-                csv_path, e))
+        dfs = [vaex.file.open(p) for p in converted_paths]
+        df_combined = vaex.dataframe.DataFrameConcatenated(dfs)
+        df_combined.export_hdf5(combined_hdf5, shuffle=False)
+
+        logger.info('deleting %d chunk files' % len(converted_paths))
+        for df, df_path in zip(dfs, converted_paths):
+            try:
+                df.close_files()
+                os.remove(df_path)
+            except Exception as e:
+                logger.error('Could not close or delete intermediate hdf5 file %s used to convert %s to hdf5: %s' % (
+                    df_path, csv_path, e))
 
     return vaex.file.open(combined_hdf5)
 

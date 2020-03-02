@@ -13,7 +13,6 @@ if sys.platform.startswith("win"):
 
 
 def test_open():
-    _cleanup_generated_files()
     with pytest.raises(IOError):
         vaex.open('doesnotexist')
 
